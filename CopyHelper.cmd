@@ -1,8 +1,7 @@
 @echo off
 cls
 echo.
-cd /d c:\Projects\CopyHelper
-c:\Projects\CopyHelper\.venv\scripts\python.exe c:\Projects\CopyHelper\CopyHelper.py
+.venv\scripts\python.exe CopyHelper.py
 echo.
 pause
 
