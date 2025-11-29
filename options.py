@@ -14,8 +14,8 @@ class Options:
         return self._options['source']
 
     @property
-    def destination(self) -> str:
-        return self._options['destination']
+    def destination_prefix(self) -> str:
+        return self._options['destination_prefix']
 
     @property
     def level(self) -> int:

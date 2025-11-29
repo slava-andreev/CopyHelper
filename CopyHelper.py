@@ -52,7 +52,6 @@ class CopyTask:
         self.name = self._generate_name()
         self.files_number = files_number
 
-
     def _generate_name(self):
         return f'Backup validation' if self.final_validation else self.source
 
@@ -85,24 +84,12 @@ class BackupRun:
         command = f'robocopy "{task.source}" "{task.destination}" {options}'
         return subprocess.Popen(command, stdout=log_file, stderr=subprocess.STDOUT, text=True, encoding='cp866')
 
-   #          if process.poll() > 8:
-   #              print(
-   #                  f'\n[red]ERROR CODE: {process.poll()} Report to system admin or check last_robocopy_run.txt[/red]\n')
-   #              logger.error(
-   #                  f"Robocopy failed with code {process.poll()}, please see last_robocopy_run.txt for details")
-   # #         diff = utils.calculate_time_diff(start_time, datetime.now())
-    #        logger.info(f'{task.source} {'(files)' if task.files_only else ''}: {diff}')
-
-
     def copy(self, task: CopyTask):
         start_time = datetime.now()
-        options = FILES_ONLY if task.files_only else MIRROR
-        command = f'robocopy "{task.source}" "{task.destination}" {options}'
 
         with open(ROBOCOPY_LOG, 'a', encoding='UTF-8') as robocopy_log:
-            with subprocess.Popen(command, stdout=robocopy_log, stderr=subprocess.STDOUT, text=True,
-                                  encoding='cp866') as process:
-                task_id = self.ui.start_job(task.name) if task.final_validation==True else -1
+            with self.copy_async(task, robocopy_log) as process:
+                task_id = self.ui.start_job(task.name) if task.final_validation == True else -1
                 ticks = 0
                 while process.poll() is None:
                     if ticks % 10 == 0:
@@ -137,7 +124,8 @@ class BackupRun:
                     folders.append(entry.name)
 
             if file_number > 0:
-                self.tasks.append(CopyTask(source, destination, files_only=True, size=files_size, files_number=file_number))
+                self.tasks.append(
+                    CopyTask(source, destination, files_only=True, size=files_size, files_number=file_number))
 
             for folder in folders:
                 self._create_tasks_recurse(f'{source}\\{folder}', f'{destination}\\{folder}', iteration - 1)
@@ -151,7 +139,6 @@ class BackupRun:
         source_info = utils.get_dir_size_files_num(self.source)
         self.total_size = source_info[0]
         self.total_files = source_info[1]
-
 
         self._create_tasks_recurse(self.source, self.destination, self.options.level)
         self.tasks.append(CopyTask(self.source, self.destination, final_validation=True, size=self.total_size,
@@ -177,10 +164,7 @@ class BackupRun:
         logger.info(f'Destination total size: {dest_info[0]:,}')
 
     def generate_destination_name(self):
-        d_prefix_path = Path(self.options.destination)
-        if d_prefix_path.is_mount():
-            print(f'[red]{self.options.backups} is a disk, directory is expected[/red]')
-            exit()  # todo fix -> exception? log?
+        d_prefix_path = Path(self.options.destination_prefix)
 
         dest_mid = 'Weekly' if datetime.now().weekday() == 0 else 'Daily'
 
@@ -201,7 +185,23 @@ class BackupRun:
         pathlib.Path(full_dest_name).mkdir(exist_ok=True)
         return full_dest_name
 
+    def check_paths(self) -> bool:
+        if Path(self.options.destination_prefix).is_mount():
+            print(f'[red]{self.options.destination_prefix}[/red] is a disk, directory is expected')
+            logger.error(f"{self.options.destination_prefix} is a disk, directory is expected")
+            return False
+
+        if not Path(self.source).exists():
+            print(f'Backup source [red]{self.source}[/red] is missing')
+            logger.error(f"Backup source {self.source} is missing")
+            return False
+
+        return True
+    
     def start(self):
+        if not self.check_paths():
+            return
+        
         self.news = utils.get_news()
 
         self.create_tasks()

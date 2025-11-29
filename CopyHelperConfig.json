@@ -1,6 +1,6 @@
 { 
   "source": "C:\\Share",
-  "destination": "C:\\Share",
+  "destination_prefix": "C:\\Share",
   "level": 2,
   "number_of_backups": 1
 }
